@@ -1,0 +1,39 @@
+{
+    "name": "derafu/escpos",
+    "description": "Derafu: ESCPOS - PHP Library for ESC/POS Printers",
+    "type": "library",
+    "homepage": "https://derafu.org/escpos",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Esteban De La Fuente Rubio / Derafu",
+            "homepage": "https://www.derafu.org"
+        }
+    ],
+    "support": {
+        "issues": "https://github.com/derafu/escpos/issues",
+        "source": "https://github.com/derafu/escpos"
+    },
+    "autoload": {
+        "psr-4": {
+            "Derafu\\Escpos\\": "src/"
+        }
+    },
+    "require": {
+        "php": "^8.3",
+        "derafu/config": "dev-main",
+        "mike42/escpos-php": "^4.0"
+    },
+    "require-dev": {
+        "friendsofphp/php-cs-fixer": "^3.63",
+        "phpstan/phpstan": "^1.12"
+    },
+    "scripts": {
+        "phpcs-fix": "vendor/bin/php-cs-fixer fix -v --config=php-cs-fixer.php",
+        "phpcs": "vendor/bin/php-cs-fixer fix -v --dry-run --diff --config=php-cs-fixer.php",
+        "phpstan": "vendor/bin/phpstan analyse --configuration=phpstan.neon --memory-limit=1G",
+        "phpstan-export": "vendor/bin/phpstan analyse --configuration=phpstan.neon --level 9 --generate-baseline"
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}
