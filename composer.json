@@ -2,12 +2,12 @@
     "name": "derafu/escpos",
     "description": "Derafu: ESCPOS - PHP Library for ESC/POS Printers",
     "type": "library",
-    "homepage": "https://derafu.org/escpos",
+    "homepage": "https://www.derafu.dev/docs/ui/escpos",
     "license": "MIT",
     "authors": [
         {
             "name": "Esteban De La Fuente Rubio / Derafu",
-            "homepage": "https://www.derafu.org"
+            "homepage": "https://www.derafu.dev"
         }
     ],
     "support": {
