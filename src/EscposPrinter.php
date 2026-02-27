@@ -261,7 +261,8 @@ final class EscposPrinter implements OptionsAwareInterface
         EscposImage $img,
         int $size = Printer::IMG_DEFAULT
     ): static {
-        $this->getPrinter()->graphics($img, $size); // Or bitImage() if it fails.
+        // In the future if this line fails then try to use bitImage(). Why?
+        $this->getPrinter()->graphics($img, $size);
 
         return $this;
     }

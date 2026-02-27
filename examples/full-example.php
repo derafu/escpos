@@ -10,6 +10,23 @@ declare(strict_types=1);
  * See LICENSE file for more details.
  */
 
+// -----------------------------------------------------------------------------
+// Run the example with:
+//   php examples/full-example.php | nc 172.16.1.5 9100
+// -----------------------------------------------------------------------------
+
+// Ignore deprecation notices.
+// This is necessary because the library Mike42/escpos-php uses deprecated code.
+// PHP Deprecated:  Mike42\Escpos\EscposImage::loadImageData(): Implicitly marking parameter $filename as nullable is deprecated, the explicit nullable type must be used instead in /Users/delaf/dev/derafu/derafu-escpos/vendor/mike42/escpos-php/src/Mike42/Escpos/EscposImage.php on line 201
+// PHP Deprecated:  Mike42\Escpos\GdEscposImage::loadImageData(): Implicitly marking parameter $filename as nullable is deprecated, the explicit nullable type must be used instead in /Users/delaf/dev/derafu/derafu-escpos/vendor/mike42/escpos-php/src/Mike42/Escpos/GdEscposImage.php on line 32
+// PHP Deprecated:  Mike42\Escpos\Printer::__construct(): Implicitly marking parameter $profile as nullable is deprecated, the explicit nullable type must be used instead in /Users/delaf/dev/derafu/derafu-escpos/vendor/mike42/escpos-php/src/Mike42/Escpos/Printer.php on line 360
+// PHP Deprecated:  Mike42\Escpos\Printer::setLineSpacing(): Implicitly marking parameter $height as nullable is deprecated, the explicit nullable type must be used instead in /Users/delaf/dev/derafu/derafu-escpos/vendor/mike42/escpos-php/src/Mike42/Escpos/Printer.php on line 885
+// PHP Deprecated:  Mike42\Escpos\PrintBuffers\EscposPrintBuffer::setPrinter(): Implicitly marking parameter $printer as nullable is deprecated, the explicit nullable type must be used instead in /Users/delaf/dev/derafu/derafu-escpos/vendor/mike42/escpos-php/src/Mike42/Escpos/PrintBuffers/EscposPrintBuffer.php on line 78
+// PHP Deprecated:  Mike42\Escpos\PrintBuffers\PrintBuffer::setPrinter(): Implicitly marking parameter $printer as nullable is deprecated, the explicit nullable type must be used instead in /Users/delaf/dev/derafu/derafu-escpos/vendor/mike42/escpos-php/src/Mike42/Escpos/PrintBuffers/PrintBuffer.php on line 51
+// This MUST be removed in the future when the library Mike42/escpos-php is
+// updated to remove the deprecated code.
+error_reporting(E_ALL & ~E_DEPRECATED);
+
 // Include the autoloader (adjust this path to match your environment).
 require_once __DIR__ . '/../vendor/autoload.php';
 
@@ -132,7 +149,9 @@ $printer->feed(1);
 $printer->println("Scan for more information:");
 
 // Create a PDF417 2D barcode with transaction info.
-$pdf417data = "TRX:12345|DATE:" . date('Ymd') . "|TOTAL:" . number_format($total + $tax, 2);
+$pdf417data = "TRX:12345|DATE:" . date('Ymd')
+    . "|TOTAL:" . number_format($total + $tax, 2)
+;
 $pdf417data = file_get_contents(__DIR__ . '/../LICENSE');
 $printer->pdf417($pdf417data);
 
