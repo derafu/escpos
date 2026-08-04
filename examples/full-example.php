@@ -5,7 +5,7 @@ declare(strict_types=1);
 /**
  * Derafu: ESCPOS - PHP Library for ESC/POS Printers.
  *
- * Copyright (c) 2025 Esteban De La Fuente Rubio / Derafu <https://www.derafu.dev>
+ * Copyright (c) 2026 Esteban De La Fuente Rubio / Derafu <https://www.derafu.dev>
  * Licensed under the MIT License.
  * See LICENSE file for more details.
  */
@@ -13,31 +13,23 @@ declare(strict_types=1);
 // -----------------------------------------------------------------------------
 // Run the example with:
 //   php examples/full-example.php | nc 172.16.1.5 9100
+// or, using this package's own send-to-network-printer script:
+//   php examples/full-example.php | bin/print.php 172.16.1.5
 // -----------------------------------------------------------------------------
-
-// Ignore deprecation notices.
-// This is necessary because the library Mike42/escpos-php uses deprecated code.
-// PHP Deprecated:  Mike42\Escpos\EscposImage::loadImageData(): Implicitly marking parameter $filename as nullable is deprecated, the explicit nullable type must be used instead in /Users/delaf/dev/derafu/derafu-escpos/vendor/mike42/escpos-php/src/Mike42/Escpos/EscposImage.php on line 201
-// PHP Deprecated:  Mike42\Escpos\GdEscposImage::loadImageData(): Implicitly marking parameter $filename as nullable is deprecated, the explicit nullable type must be used instead in /Users/delaf/dev/derafu/derafu-escpos/vendor/mike42/escpos-php/src/Mike42/Escpos/GdEscposImage.php on line 32
-// PHP Deprecated:  Mike42\Escpos\Printer::__construct(): Implicitly marking parameter $profile as nullable is deprecated, the explicit nullable type must be used instead in /Users/delaf/dev/derafu/derafu-escpos/vendor/mike42/escpos-php/src/Mike42/Escpos/Printer.php on line 360
-// PHP Deprecated:  Mike42\Escpos\Printer::setLineSpacing(): Implicitly marking parameter $height as nullable is deprecated, the explicit nullable type must be used instead in /Users/delaf/dev/derafu/derafu-escpos/vendor/mike42/escpos-php/src/Mike42/Escpos/Printer.php on line 885
-// PHP Deprecated:  Mike42\Escpos\PrintBuffers\EscposPrintBuffer::setPrinter(): Implicitly marking parameter $printer as nullable is deprecated, the explicit nullable type must be used instead in /Users/delaf/dev/derafu/derafu-escpos/vendor/mike42/escpos-php/src/Mike42/Escpos/PrintBuffers/EscposPrintBuffer.php on line 78
-// PHP Deprecated:  Mike42\Escpos\PrintBuffers\PrintBuffer::setPrinter(): Implicitly marking parameter $printer as nullable is deprecated, the explicit nullable type must be used instead in /Users/delaf/dev/derafu/derafu-escpos/vendor/mike42/escpos-php/src/Mike42/Escpos/PrintBuffers/PrintBuffer.php on line 51
-// This MUST be removed in the future when the library Mike42/escpos-php is
-// updated to remove the deprecated code.
-error_reporting(E_ALL & ~E_DEPRECATED);
 
 // Include the autoloader (adjust this path to match your environment).
 require_once __DIR__ . '/../vendor/autoload.php';
 
+use Derafu\Escpos\Constant\PrintMode;
+use Derafu\Escpos\Enum\BarcodeType;
+use Derafu\Escpos\Enum\Justification;
 use Derafu\Escpos\EscposPrinter;
-use Mike42\Escpos\EscposImage;
-use Mike42\Escpos\Printer;
+use Derafu\Escpos\ValueObject\RasterImage;
 
-// Initialize the printer with default settings. Uses a dummy connector by
+// Initialize the printer with default settings. Uses a memory connector by
 // default, which allows us to capture the ESC/POS commands.
 $printer = new EscposPrinter([
-    'connector' => ['type' => 'dummy'],
+    'connector' => ['type' => 'memory'],
     'profile' => 'default',
     'cut' => true,
     'specialchars' => true,
@@ -47,8 +39,10 @@ $printer = new EscposPrinter([
 // 1. Image printing.
 // ----------------------------------------------------------------------------
 
-$logo = EscposImage::load(__DIR__ . '/dummy-logo.png');
-$printer->setJustification(Printer::JUSTIFY_CENTER);
+$logo = RasterImage::fromPngData(
+    file_get_contents(__DIR__ . '/dummy-logo.png')
+);
+$printer->setJustification(Justification::Center);
 $printer->feed(1);
 $printer->image($logo);
 $printer->feed(1);
@@ -58,16 +52,16 @@ $printer->feed(1);
 // ----------------------------------------------------------------------------
 
 // Center align the header.
-$printer->setJustification(Printer::JUSTIFY_CENTER);
+$printer->setJustification(Justification::Center);
 
 // Print shop name with double width and height.
 $printer->selectPrintMode(
-    Printer::MODE_DOUBLE_HEIGHT | Printer::MODE_DOUBLE_WIDTH
+    PrintMode::DOUBLE_HEIGHT | PrintMode::DOUBLE_WIDTH
 );
 $printer->println("EXAMPLE SHOP");
 
 // Reset to normal print mode.
-$printer->selectPrintMode(Printer::MODE_FONT_A);
+$printer->selectPrintMode(PrintMode::FONT_A);
 $printer->println("123 Example Street");
 $printer->println("City, Country");
 $printer->println("Tel: (123) 456-7890");
@@ -85,7 +79,7 @@ $printer->feed(1);
 // ----------------------------------------------------------------------------
 
 // Left justify for item descriptions.
-$printer->setJustification(Printer::JUSTIFY_LEFT);
+$printer->setJustification(Justification::Left);
 $printer->println("SALES RECEIPT");
 $printer->println("");
 
@@ -115,15 +109,15 @@ $printer->println("------------------------------------------------");
 $tax = $total * 0.10; // Assume 10% tax.
 
 // Right-align the totals.
-$printer->setJustification(Printer::JUSTIFY_RIGHT);
+$printer->setJustification(Justification::Right);
 $printer->print("SUBTOTAL: %11.2f\n", $total);
 $printer->print("TAX 10%%: %11.2f\n", $tax);
 $printer->println("------------------------------------------------");
 
 // Print total with emphasis (bold).
-$printer->selectPrintMode(Printer::MODE_EMPHASIZED);
+$printer->selectPrintMode(PrintMode::EMPHASIZED);
 $printer->print("TOTAL: %11.2f\n", $total + $tax);
-$printer->selectPrintMode(Printer::MODE_FONT_A);
+$printer->selectPrintMode(PrintMode::FONT_A);
 
 // Payment method.
 $printer->println("");
@@ -135,11 +129,11 @@ $printer->println("Card: XXXX-XXXX-XXXX-1234");
 // ----------------------------------------------------------------------------
 
 $printer->feed(1);
-$printer->setJustification(Printer::JUSTIFY_CENTER);
+$printer->setJustification(Justification::Center);
 $printer->println("Transaction ID: TRX12345");
 
 // Print a CODE39 barcode.
-$printer->barcode("TRX12345", Printer::BARCODE_CODE39);
+$printer->barcode("TRX12345", BarcodeType::Code39);
 
 // ----------------------------------------------------------------------------
 // 5. 2D barcode (PDF417).
@@ -160,7 +154,7 @@ $printer->pdf417($pdf417data);
 // ----------------------------------------------------------------------------
 
 $printer->feed(1);
-$printer->setJustification(Printer::JUSTIFY_CENTER);
+$printer->setJustification(Justification::Center);
 $printer->println("Special Chars: áéíóúñÑ");
 
 // ----------------------------------------------------------------------------
@@ -168,10 +162,10 @@ $printer->println("Special Chars: áéíóúñÑ");
 // ----------------------------------------------------------------------------
 
 $printer->feed(1);
-$printer->setJustification(Printer::JUSTIFY_CENTER);
+$printer->setJustification(Justification::Center);
 $printer->println("Thank you for your purchase!");
 $printer->println("");
-$printer->selectPrintMode(Printer::MODE_FONT_B); // Smaller font.
+$printer->selectPrintMode(PrintMode::FONT_B); // Smaller font.
 $printer->println("This is not a tax invoice.");
 $printer->println("Exchange within 30 days with receipt.");
 $printer->println("Terms and conditions apply.");
@@ -184,5 +178,5 @@ $printer->println("Terms and conditions apply.");
 $escposData = $printer->end();
 
 // Output the ESC/POS data to stdout. When redirected to a file or piped to
-// netcat, this will be sent to the printer.
+// netcat (or bin/print.php), this will be sent to the printer.
 echo $escposData;

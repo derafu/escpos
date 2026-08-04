@@ -42,18 +42,18 @@ jobs:
       - name: Run PHPStan
         run: vendor/bin/phpstan analyse --configuration=phpstan.neon --memory-limit=1G
 
-    #   - name: Run PHPUnit
-    #     run: XDEBUG_MODE=coverage vendor/bin/phpunit --configuration=phpunit.xml
+      - name: Run PHPUnit
+        run: XDEBUG_MODE=coverage vendor/bin/phpunit --configuration=phpunit.xml
 
-    #   - name: Upload PHPUnit result report
-    #     if: failure()
-    #     uses: actions/upload-artifact@v4
-    #     with:
-    #       name: tests-testdox-php_${{ matrix.php-version }}.txt
-    #       path: var/tests-testdox.txt
+      - name: Upload PHPUnit result report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tests-testdox-php_${{ matrix.php-version }}.txt
+          path: var/tests-testdox.txt
 
-    #   - name: Upload Coverage Report
-    #     uses: actions/upload-artifact@v4
-    #     with:
-    #       name: tests-coverage-php_${{ matrix.php-version }}.txt
-    #       path: var/tests-coverage.txt
+      - name: Upload Coverage Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: tests-coverage-php_${{ matrix.php-version }}.txt
+          path: var/tests-coverage.txt

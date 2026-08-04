@@ -4,3 +4,5 @@ parameters:
     # Source code directories to be reviewed.
     paths:
         - src
+        - bin
+        - examples

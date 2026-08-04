@@ -21,12 +21,15 @@
     },
     "require": {
         "php": "^8.5",
+        "ext-gd": "*",
         "derafu/config": "dev-main",
-        "mike42/escpos-php": "^4.0"
+        "mike42/escpos-php": "^5.0",
+        "tecnickcom/tc-lib-barcode": "^2.12"
     },
     "require-dev": {
-        "friendsofphp/php-cs-fixer": "^3.94",
-        "phpstan/phpstan": "^1.12"
+        "friendsofphp/php-cs-fixer": "^3.95",
+        "phpstan/phpstan": "^2.2",
+        "phpunit/phpunit": "^13.2"
     },
     "scripts": {
         "phpcs-fix": "vendor/bin/php-cs-fixer fix -v --config=php-cs-fixer.php",

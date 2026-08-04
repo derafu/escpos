@@ -5,7 +5,7 @@ declare(strict_types=1);
 /**
  * Derafu: ESCPOS - PHP Library for ESC/POS Printers.
  *
- * Copyright (c) 2025 Esteban De La Fuente Rubio / Derafu <https://www.derafu.dev>
+ * Copyright (c) 2025-2026 Esteban De La Fuente Rubio / Derafu <https://www.derafu.dev>
  * Licensed under the MIT License.
  * See LICENSE file for more details.
  */
@@ -15,55 +15,40 @@ namespace Derafu\Escpos;
 use Derafu\Config\Contract\OptionsAwareInterface;
 use Derafu\Config\Contract\OptionsInterface;
 use Derafu\Config\Trait\OptionsAwareTrait;
-use InvalidArgumentException;
-use Mike42\Escpos\CapabilityProfile;
-use Mike42\Escpos\EscposImage;
-use Mike42\Escpos\PrintConnectors\DummyPrintConnector;
-use Mike42\Escpos\PrintConnectors\PrintConnector;
-use Mike42\Escpos\Printer;
+use Derafu\Escpos\Adapter\Mike42Printer;
+use Derafu\Escpos\Constant\ImageSize;
+use Derafu\Escpos\Constant\PrintMode;
+use Derafu\Escpos\Contract\PrinterInterface;
+use Derafu\Escpos\Enum\BarcodeType;
+use Derafu\Escpos\Enum\Justification;
+use Derafu\Escpos\Enum\Pdf417Option;
+use Derafu\Escpos\ValueObject\RasterImage;
 
 /**
- * Wraper of Mike42\Escpos\Printer to send ESC/POS data to a compatible thermal
- * printer.
+ * Facade to send ESC/POS data to a compatible thermal printer.
+ *
+ * This class never talks to the underlying ESC/POS library directly — that
+ * is the job of the `PrinterInterface` it delegates to (by default,
+ * `Adapter\Mike42Printer`). This class only owns: option resolution, the
+ * sprintf/line-break convenience of `print()`/`println()`, the
+ * `specialchars` text preprocessing, and the `end()` workflow (finish,
+ * optionally cut and pulse, return the output).
  */
 final class EscposPrinter implements OptionsAwareInterface
 {
     // Traits that this class uses.
     use OptionsAwareTrait;
 
-    /**
-     * Instance of the printer for ESC/POS.
-     *
-     * @var Printer
-     */
-    private Printer $printer;
+    private readonly PrinterInterface $printer;
 
-    /**
-     * Printer connector.
-     *
-     * @var PrintConnector
-     */
-    private PrintConnector $connector;
-
-    /**
-     * Printer profile.
-     *
-     * @var CapabilityProfile
-     */
-    private CapabilityProfile $profile;
-
-    /**
-     * Printer options.
-     *
-     * @var array
-     */
+    /** @var array */
     protected array $optionsSchema = [
         'connector' => [
             'types' => 'array',
             'schema' => [
                 'type' => [
                     'types' => 'string',
-                    'default' => 'dummy',
+                    'default' => 'memory',
                 ],
             ],
         ],
@@ -74,38 +59,30 @@ final class EscposPrinter implements OptionsAwareInterface
         'pulse' => [
             'types' => 'array',
             'schema' => [
-                'pin' => [
-                    'types' => 'int',
-                    'default' => 0,
-                ],
-                'on_ms' => [
-                    'types' => 'int',
-                    'default' => 120,
-                ],
-                'off_ms' => [
-                    'types' => 'int',
-                    'default' => 240,
-                ],
+                'pin' => ['types' => 'int', 'default' => 0],
+                'on_ms' => ['types' => 'int', 'default' => 120],
+                'off_ms' => ['types' => 'int', 'default' => 240],
             ],
         ],
-        'cut' => [
-            'types' => 'bool',
-            'default' => true,
-        ],
-        'specialchars' => [
-            'types' => 'bool',
-            'default' => true,
-        ],
+        'cut' => ['types' => 'bool', 'default' => true],
+        'specialchars' => ['types' => 'bool', 'default' => true],
     ];
 
     /**
-     * Constructor of the class.
-     *
      * @param array $options Printer configuration.
+     * @param PrinterInterface|null $printer Backend to delegate to. Mainly
+     * useful for tests; consumers normally leave this to its default
+     * (a `Mike42Printer` built from $options).
      */
-    public function __construct(array $options = [])
-    {
+    public function __construct(
+        array $options = [],
+        ?PrinterInterface $printer = null,
+    ) {
         $this->resolveOptions($options);
+        $this->printer = $printer ?? new Mike42Printer(
+            $this->resolveConnectorOption(),
+            $this->getOptions()->get('profile'),
+        );
     }
 
     /**
@@ -113,18 +90,9 @@ final class EscposPrinter implements OptionsAwareInterface
      */
     public function __destruct()
     {
-        if (isset($this->printer)) {
-            $this->printer->close();
-        }
+        $this->printer->close();
     }
 
-    /**
-     * Prints a text on the printer.
-     *
-     * @param string $text Text to print on the printer.
-     * @param ...$values Values that will be passed to sprintf().
-     * @return static
-     */
     public function print(string $text, ...$values): static
     {
         $text = sprintf($text, ...$values);
@@ -133,41 +101,26 @@ final class EscposPrinter implements OptionsAwareInterface
             $text = $this->replaceSpecialChars($text);
         }
 
-        $this->getPrinter()->text($text);
+        $this->printer->text($text);
 
         return $this;
     }
 
-    /**
-     * Prints a text on the printer with an automatic line break.
-     *
-     * @param string $text Text to print on the printer.
-     * @param ...$values Values that will be passed to sprintf().
-     * @return static
-     */
     public function println(string $text = '', ...$values): static
     {
         return $this->print($text . "\n", ...$values);
     }
 
     /**
-     * Returns the data in ESC/POS format.
-     *
-     * @return string
+     * Returns the data in ESC/POS format printed so far.
      */
     public function dump(): string
     {
-        $connector = $this->getPrinter()->getPrintConnector();
-
-        assert($connector instanceof DummyPrintConnector);
-
-        return $connector->getData();
+        return $this->printer->getOutput();
     }
 
     /**
      * Sends the commands to finish the print and returns the content.
-     *
-     * @return string
      */
     public function end(): string
     {
@@ -188,21 +141,12 @@ final class EscposPrinter implements OptionsAwareInterface
         return $this->dump();
     }
 
-    /**
-     * Generates a barcode code.
-     *
-     * @param string $content Barcode data.
-     * @param int $type Barcode type.
-     * @param int $height Barcode height.
-     * @return static
-     */
     public function barcode(
         string $content,
-        int $type = Printer::BARCODE_CODE39,
+        BarcodeType $type = BarcodeType::Code39,
         int $height = 48
     ): static {
-        $this->getPrinter()->setBarcodeHeight($height);
-        $this->getPrinter()->barcode($content, $type);
+        $this->printer->barcode($content, $type, $height);
 
         return $this;
     }
@@ -217,12 +161,8 @@ final class EscposPrinter implements OptionsAwareInterface
      * by default 0, the columns will be calculated automatically. Smaller
      * numbers result in a narrower code, allowing larger pixel sizes. Larger
      * numbers require smaller pixel sizes.
-     * @param float $ec Error correction ratio, from 0.01 to 4.00. Default, 0.10
-     * (10%).
-     * @param int $options Standard code Printer::PDF417_STANDARD with start and
-     * end bars, or truncated code Printer::PDF417_TRUNCATED with only start
-     * bars.
-     * @return static
+     * @param float $ec Error correction ratio, from 0.01 to 4.00. Default,
+     * 0.10 (10%).
      */
     public function pdf417(
         string $content,
@@ -230,15 +170,15 @@ final class EscposPrinter implements OptionsAwareInterface
         int $heightMultiplier = 2,
         int $dataColumnCount = 0,
         float $ec = 0.10,
-        int $options = Printer::PDF417_STANDARD
+        Pdf417Option $option = Pdf417Option::Standard
     ): static {
-        $this->getPrinter()->pdf417Code(
+        $this->printer->pdf417(
             $content,
             $width,
             $heightMultiplier,
             $dataColumnCount,
             $ec,
-            $options
+            $option
         );
 
         return $this;
@@ -249,47 +189,36 @@ final class EscposPrinter implements OptionsAwareInterface
      *
      * Available size modifiers (can be combined):
      *
-     *   - Printer::IMG_DEFAULT (keeps the image in its original size).
-     *   - Printer::IMG_DOUBLE_WIDTH (doubles the image width).
-     *   - Printer::IMG_DOUBLE_HEIGHT (doubles the image height).
-     *
-     * @param EscposImage $img The image that will be printed.
-     * @param int $size Image size modifier.
-     * @return static
+     *   - ImageSize::STANDARD (keeps the image in its original size).
+     *   - ImageSize::DOUBLE_WIDTH (doubles the image width).
+     *   - ImageSize::DOUBLE_HEIGHT (doubles the image height).
      */
     public function image(
-        EscposImage $img,
-        int $size = Printer::IMG_DEFAULT
+        RasterImage $image,
+        int $size = ImageSize::STANDARD
     ): static {
-        // In the future if this line fails then try to use bitImage(). Why?
-        $this->getPrinter()->graphics($img, $size);
+        $this->printer->image($image, $size);
 
         return $this;
     }
 
     /**
      * Adds empty lines.
-     *
-     * @param int $lines
-     * @return static
      */
     public function feed(int $lines = 1): static
     {
-        $this->getPrinter()->feed($lines);
+        $this->printer->feed($lines);
 
         return $this;
     }
 
     /**
-     * Selects the print mode that will be used in the following writings on the
-     * printer.
-     *
-     * @param int $mode
-     * @return static
+     * Selects the print mode that will be used in the following writings on
+     * the printer.
      */
-    public function selectPrintMode(int $mode = Printer::MODE_FONT_A): static
+    public function selectPrintMode(int $mode = PrintMode::FONT_A): static
     {
-        $this->getPrinter()->selectPrintMode($mode);
+        $this->printer->selectPrintMode($mode);
 
         return $this;
     }
@@ -297,108 +226,31 @@ final class EscposPrinter implements OptionsAwareInterface
     /**
      * Specifies the justification of the text that will be used in the
      * following writings on the printer.
-     *
-     * @param int $justification
-     * @return static
      */
     public function setJustification(
-        int $justification = Printer::JUSTIFY_LEFT
+        Justification $justification = Justification::Left
     ): static {
-        $this->getPrinter()->setJustification($justification);
+        $this->printer->setJustification($justification);
 
         return $this;
     }
 
     /**
-     * Returns the printer.
+     * Extracts the connector type/instance from the resolved options.
      *
-     * @return Printer
+     * The `connector` option is declared as an array (`['type' => ...]`),
+     * so it normally arrives wrapped in an `OptionsInterface`. It may also
+     * be an already-built connector instance passed directly.
      */
-    private function getPrinter(): Printer
+    private function resolveConnectorOption(): string|object
     {
-        if (!isset($this->printer)) {
-            $connector = $this->getConnector();
-            $profile = $this->getProfile();
-            $this->printer = new Printer($connector, $profile);
+        $connector = $this->getOptions()->get('connector');
+
+        if ($connector instanceof OptionsInterface) {
+            return $connector->get('type');
         }
 
-        return $this->printer;
-    }
-
-    /**
-     * Returns the printer connector.
-     *
-     * @return PrintConnector
-     */
-    private function getConnector(): PrintConnector
-    {
-        if (!isset($this->connector)) {
-            $connector = $this->getOptions()->get('connector');
-
-            // If the connector is an array then it is the type and the
-            // configuration of the same.
-            if ($connector instanceof OptionsInterface) {
-                $connectorType = $connector->get('type');
-                $class = sprintf(
-                    '\Mike42\Escpos\PrintConnectors\%sPrintConnector',
-                    ucfirst($connectorType)
-                );
-                switch ($connectorType) {
-                    case 'dummy': {
-                        $this->connector = new $class();
-                        break;
-                    }
-                    default: {
-                        throw new InvalidArgumentException(sprintf(
-                            'PrintConnector %s cannot be configured.',
-                            $connectorType
-                        ));
-                    }
-                }
-            }
-
-            // If the connector is an object then it was already loaded and
-            // configured.
-            elseif (is_object($connector)) {
-                $this->connector = $connector;
-            }
-        }
-
-        return $this->connector;
-    }
-
-    /**
-     * Returns the printer profile.
-     *
-     * @return CapabilityProfile
-     */
-    private function getProfile(): CapabilityProfile
-    {
-        if (!isset($this->profile)) {
-            $profile = $this->getOptions()->get('profile');
-
-            // If the profile is a string then it is the name of the "profiles"
-            // listed in the JSON file:
-            // https://github.com/mike42/escpos-php/blob/development/src/Mike42/Escpos/resources/capabilities.json
-            if (is_string($profile)) {
-                try {
-                    $this->profile = CapabilityProfile::load($profile);
-                } catch (InvalidArgumentException $e) {
-                    $this->getConnector()->finalize();
-                    throw new InvalidArgumentException(sprintf(
-                        'The ESCPOS printer profile %s is not available.',
-                        $profile
-                    ));
-                }
-            }
-
-            // If it is an object then the profile was already loaded.
-            elseif (is_object($profile)) {
-                $this->profile = $profile;
-            }
-        }
-
-        return $this->profile;
+        return $connector;
     }
 
     /**
