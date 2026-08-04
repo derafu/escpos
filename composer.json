@@ -2,7 +2,7 @@
     "name": "derafu/escpos",
     "description": "Derafu: ESCPOS - PHP Library for ESC/POS Printers",
     "type": "library",
-    "homepage": "https://www.derafu.dev/docs/ui/escpos",
+    "homepage": "https://www.derafu.dev/docs/utils/escpos",
     "license": "MIT",
     "authors": [
         {
