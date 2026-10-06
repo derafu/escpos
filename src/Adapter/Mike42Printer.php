@@ -134,11 +134,10 @@ final class Mike42Printer implements PrinterInterface
     public function getOutput(): string
     {
         if (!$this->connector instanceof MemoryPrintConnector) {
-            throw new UnbufferedConnectorException(sprintf(
-                'Cannot read the output of a %s connector, it does not'
-                . ' buffer data in memory.',
-                $this->connector::class
-            ));
+            throw new UnbufferedConnectorException([
+                'Cannot read the output of a {connector} connector, it does not buffer data in memory.',
+                'connector' => $this->connector::class,
+            ]);
         }
 
         return $this->connector->getData();
@@ -157,10 +156,10 @@ final class Mike42Printer implements PrinterInterface
 
         return match ($connector) {
             'memory' => new MemoryPrintConnector(),
-            default => throw new ConnectorNotSupportedException(sprintf(
-                'PrintConnector "%s" is not supported.',
-                $connector
-            )),
+            default => throw new ConnectorNotSupportedException([
+                'PrintConnector "{connector}" is not supported.',
+                'connector' => $connector,
+            ]),
         };
     }
 
@@ -174,10 +173,10 @@ final class Mike42Printer implements PrinterInterface
             return CapabilityProfile::load($profile);
         } catch (InvalidArgumentException) {
             $this->connector->finalize();
-            throw new ProfileNotFoundException(sprintf(
-                'The ESC/POS printer profile "%s" is not available.',
-                $profile
-            ));
+            throw new ProfileNotFoundException([
+                'The ESC/POS printer profile "{profile}" is not available.',
+                'profile' => $profile,
+            ]);
         }
     }
 }

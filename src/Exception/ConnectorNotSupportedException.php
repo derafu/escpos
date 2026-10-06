@@ -12,11 +12,11 @@ declare(strict_types=1);
 
 namespace Derafu\Escpos\Exception;
 
-use InvalidArgumentException;
+use Derafu\Translation\Exception\Logic\TranslatableInvalidArgumentException;
 
 /**
  * Thrown when the configured connector type has no known implementation.
  */
-final class ConnectorNotSupportedException extends InvalidArgumentException implements EscposExceptionInterface
+final class ConnectorNotSupportedException extends TranslatableInvalidArgumentException implements EscposExceptionInterface
 {
 }

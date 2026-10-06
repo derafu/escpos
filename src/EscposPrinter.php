@@ -14,6 +14,7 @@ namespace Derafu\Escpos;
 
 use Derafu\Config\Contract\OptionsAwareInterface;
 use Derafu\Config\Contract\OptionsInterface;
+use Derafu\Config\Options;
 use Derafu\Config\Trait\OptionsAwareTrait;
 use Derafu\Escpos\Adapter\Mike42Printer;
 use Derafu\Escpos\Constant\ImageSize;
@@ -23,6 +24,7 @@ use Derafu\Escpos\Enum\BarcodeType;
 use Derafu\Escpos\Enum\Justification;
 use Derafu\Escpos\Enum\Pdf417Option;
 use Derafu\Escpos\ValueObject\RasterImage;
+use Symfony\Component\OptionsResolver\Options as ResolverOptions;
 
 /**
  * Facade to send ESC/POS data to a compatible thermal printer.
@@ -41,33 +43,6 @@ final class EscposPrinter implements OptionsAwareInterface
 
     private readonly PrinterInterface $printer;
 
-    /** @var array */
-    protected array $optionsSchema = [
-        'connector' => [
-            'types' => 'array',
-            'schema' => [
-                'type' => [
-                    'types' => 'string',
-                    'default' => 'memory',
-                ],
-            ],
-        ],
-        'profile' => [
-            'types' => 'string',
-            'default' => 'default',
-        ],
-        'pulse' => [
-            'types' => 'array',
-            'schema' => [
-                'pin' => ['types' => 'int', 'default' => 0],
-                'on_ms' => ['types' => 'int', 'default' => 120],
-                'off_ms' => ['types' => 'int', 'default' => 240],
-            ],
-        ],
-        'cut' => ['types' => 'bool', 'default' => true],
-        'specialchars' => ['types' => 'bool', 'default' => true],
-    ];
-
     /**
      * @param array $options Printer configuration.
      * @param PrinterInterface|null $printer Backend to delegate to. Mainly
@@ -83,6 +58,44 @@ final class EscposPrinter implements OptionsAwareInterface
             $this->resolveConnectorOption(),
             $this->getOptions()->get('profile'),
         );
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getOptionsSchema(): array
+    {
+        return [
+            // Either the configuration of a connector (an array with its `type`)
+            // or an already-built connector instance. It is not declared with a
+            // nested `schema` because that forces the option to be an array.
+            'connector' => [
+                'types' => ['array', 'object'],
+                'default' => [],
+                'normalizer' => static fn (
+                    ResolverOptions $options,
+                    array|object $value
+                ) => is_object($value)
+                    ? $value
+                    : (new Options($value, [
+                        'type' => ['types' => 'string', 'default' => 'memory'],
+                    ]))->all(),
+            ],
+            'profile' => [
+                'types' => 'string',
+                'default' => 'default',
+            ],
+            'pulse' => [
+                'types' => 'array',
+                'schema' => [
+                    'pin' => ['types' => 'int', 'default' => 0],
+                    'on_ms' => ['types' => 'int', 'default' => 120],
+                    'off_ms' => ['types' => 'int', 'default' => 240],
+                ],
+            ],
+            'cut' => ['types' => 'bool', 'default' => true],
+            'specialchars' => ['types' => 'bool', 'default' => true],
+        ];
     }
 
     /**

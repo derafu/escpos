@@ -12,11 +12,11 @@ declare(strict_types=1);
 
 namespace Derafu\Escpos\Exception;
 
-use InvalidArgumentException;
+use Derafu\Translation\Exception\Logic\TranslatableInvalidArgumentException;
 
 /**
  * Thrown when raster image data (e.g. PNG bytes) cannot be decoded.
  */
-final class InvalidImageDataException extends InvalidArgumentException implements EscposExceptionInterface
+final class InvalidImageDataException extends TranslatableInvalidArgumentException implements EscposExceptionInterface
 {
 }

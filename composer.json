@@ -24,14 +24,20 @@
         "ext-gd": "*",
         "derafu/config": "dev-main",
         "mike42/escpos-php": "^5.0",
-        "tecnickcom/tc-lib-barcode": "^2.12"
+        "tecnickcom/tc-lib-barcode": "^2.12",
+        "derafu/translation": "dev-main"
     },
     "require-dev": {
         "friendsofphp/php-cs-fixer": "^3.95",
         "phpstan/phpstan": "^2.2",
-        "phpunit/phpunit": "^13.2"
+        "phpunit/phpunit": "^13.4",
+        "nikic/php-parser": "^5.9"
+    },
+    "suggest": {
+        "nikic/php-parser": "Required by the tests of the messages of the package (Derafu\\Translation\\Lint reads the code)."
     },
     "scripts": {
+        "tests": "XDEBUG_MODE=coverage vendor/bin/phpunit --configuration=phpunit.xml",
         "phpcs-fix": "vendor/bin/php-cs-fixer fix -v --config=php-cs-fixer.php",
         "phpcs": "vendor/bin/php-cs-fixer fix -v --dry-run --diff --config=php-cs-fixer.php",
         "phpstan": "vendor/bin/phpstan analyse --configuration=phpstan.neon --memory-limit=1G",

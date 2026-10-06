@@ -41,9 +41,7 @@ final class RasterImage
         $resource = @imagecreatefromstring($data);
 
         if (!$resource instanceof GdImage) {
-            throw new InvalidImageDataException(
-                'Could not decode the given PNG data.'
-            );
+            throw new InvalidImageDataException('Could not decode the given PNG data.');
         }
 
         return new self($resource);

@@ -52,25 +52,25 @@ final class NetworkTransport
         );
 
         if ($socket === false) {
-            throw new NetworkDeliveryException(sprintf(
-                'Could not connect to %s:%d: %s (error %d).',
-                $host,
-                $port,
-                $errorMessage,
-                $errorNumber
-            ));
+            throw new NetworkDeliveryException([
+                'Could not connect to {host}:{port}: {error} (error {code}).',
+                'host' => $host,
+                'port' => (string) $port,
+                'error' => $errorMessage,
+                'code' => (string) $errorNumber,
+            ]);
         }
 
         try {
             $written = fwrite($socket, $bytes);
 
             if ($written === false || $written < strlen($bytes)) {
-                throw new NetworkDeliveryException(sprintf(
-                    'Could not write all %d bytes to %s:%d.',
-                    strlen($bytes),
-                    $host,
-                    $port
-                ));
+                throw new NetworkDeliveryException([
+                    'Could not write all {bytes} bytes to {host}:{port}.',
+                    'bytes' => (string) strlen($bytes),
+                    'host' => $host,
+                    'port' => (string) $port,
+                ]);
             }
         } finally {
             fclose($socket);

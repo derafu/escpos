@@ -12,12 +12,12 @@ declare(strict_types=1);
 
 namespace Derafu\Escpos\Exception;
 
-use RuntimeException;
+use Derafu\Translation\Exception\Core\TranslatableRuntimeException;
 
 /**
  * Thrown when reading the printed output is requested from a connector that
  * does not buffer data in memory (e.g. a real network or file connector).
  */
-final class UnbufferedConnectorException extends RuntimeException implements EscposExceptionInterface
+final class UnbufferedConnectorException extends TranslatableRuntimeException implements EscposExceptionInterface
 {
 }

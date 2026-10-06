@@ -12,11 +12,11 @@ declare(strict_types=1);
 
 namespace Derafu\Escpos\Exception;
 
-use RuntimeException;
+use Derafu\Translation\Exception\Core\TranslatableRuntimeException;
 
 /**
  * Thrown when ESC/POS bytes could not be delivered to a network printer.
  */
-final class NetworkDeliveryException extends RuntimeException implements EscposExceptionInterface
+final class NetworkDeliveryException extends TranslatableRuntimeException implements EscposExceptionInterface
 {
 }
