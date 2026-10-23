@@ -39,9 +39,12 @@ $printer = new EscposPrinter([
 // 1. Image printing.
 // ----------------------------------------------------------------------------
 
-$logo = RasterImage::fromPngData(
-    file_get_contents(__DIR__ . '/dummy-logo.png')
-);
+$logoData = @file_get_contents(__DIR__ . '/dummy-logo.png');
+if ($logoData === false) {
+    fwrite(STDERR, "Could not read the example logo.\n");
+    exit(1);
+}
+$logo = RasterImage::fromPngData($logoData);
 $printer->setJustification(Justification::Center);
 $printer->feed(1);
 $printer->image($logo);
@@ -146,7 +149,11 @@ $printer->println("Scan for more information:");
 $pdf417data = "TRX:12345|DATE:" . date('Ymd')
     . "|TOTAL:" . number_format($total + $tax, 2)
 ;
-$pdf417data = file_get_contents(__DIR__ . '/../LICENSE');
+$pdf417data = @file_get_contents(__DIR__ . '/../LICENSE');
+if ($pdf417data === false) {
+    fwrite(STDERR, "Could not read the license for the PDF417 example.\n");
+    exit(1);
+}
 $printer->pdf417($pdf417data);
 
 // ----------------------------------------------------------------------------

@@ -151,6 +151,13 @@ final class Mike42Printer implements PrinterInterface
     private function resolveConnector(string|object $connector): PrintConnector
     {
         if (is_object($connector)) {
+            if (!$connector instanceof PrintConnector) {
+                throw new ConnectorNotSupportedException([
+                    'The connector must implement PrintConnector; {type} given.',
+                    'type' => $connector::class,
+                ]);
+            }
+
             return $connector;
         }
 
@@ -166,6 +173,14 @@ final class Mike42Printer implements PrinterInterface
     private function resolveProfile(string|object $profile): CapabilityProfile
     {
         if (is_object($profile)) {
+            if (!$profile instanceof CapabilityProfile) {
+                $this->connector->finalize();
+                throw new ProfileNotFoundException([
+                    'The printer profile must be a CapabilityProfile instance; {type} given.',
+                    'type' => $profile::class,
+                ]);
+            }
+
             return $profile;
         }
 

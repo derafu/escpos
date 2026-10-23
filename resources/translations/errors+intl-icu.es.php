@@ -23,4 +23,10 @@ return [
         'El PrintConnector "{connector}" no está soportado.',
     'The ESC/POS printer profile "{profile}" is not available.' =>
         'El perfil de impresora ESC/POS "{profile}" no está disponible.',
+    'The connector must be an object or a connector configuration; {type} given.' =>
+        'El conector debe ser un objeto o una configuración de conector; se recibió {type}.',
+    'The connector must implement PrintConnector; {type} given.' =>
+        'El conector debe implementar PrintConnector; se recibió {type}.',
+    'The printer profile must be a CapabilityProfile instance; {type} given.' =>
+        'El perfil de impresora debe ser una instancia de CapabilityProfile; se recibió {type}.',
 ];

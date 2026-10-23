@@ -15,7 +15,8 @@ namespace Derafu\Escpos\Exception;
 use Derafu\Translation\Exception\Logic\TranslatableInvalidArgumentException;
 
 /**
- * Thrown when the configured printer capability profile does not exist.
+ * Thrown when the configured printer capability profile does not exist or an
+ * incompatible profile instance is provided.
  */
 final class ProfileNotFoundException extends TranslatableInvalidArgumentException implements EscposExceptionInterface
 {

@@ -23,7 +23,9 @@ use Derafu\Escpos\Contract\PrinterInterface;
 use Derafu\Escpos\Enum\BarcodeType;
 use Derafu\Escpos\Enum\Justification;
 use Derafu\Escpos\Enum\Pdf417Option;
+use Derafu\Escpos\Exception\ConnectorNotSupportedException;
 use Derafu\Escpos\ValueObject\RasterImage;
+use Stringable;
 use Symfony\Component\OptionsResolver\Options as ResolverOptions;
 
 /**
@@ -44,7 +46,7 @@ final class EscposPrinter implements OptionsAwareInterface
     private readonly PrinterInterface $printer;
 
     /**
-     * @param array $options Printer configuration.
+     * @param array<array-key, mixed> $options Printer configuration.
      * @param PrinterInterface|null $printer Backend to delegate to. Mainly
      * useful for tests; consumers normally leave this to its default
      * (a `Mike42Printer` built from $options).
@@ -56,7 +58,7 @@ final class EscposPrinter implements OptionsAwareInterface
         $this->resolveOptions($options);
         $this->printer = $printer ?? new Mike42Printer(
             $this->resolveConnectorOption(),
-            $this->getOptions()->get('profile'),
+            $this->getOptions()->requireString('profile'),
         );
     }
 
@@ -106,8 +108,16 @@ final class EscposPrinter implements OptionsAwareInterface
         $this->printer->close();
     }
 
-    public function print(string $text, ...$values): static
+    /**
+     * @param bool|int|float|string|Stringable|null ...$values Values passed to sprintf().
+     */
+    public function print(string $text, bool|int|float|string|Stringable|null ...$values): static
     {
+        foreach ($values as $key => $value) {
+            if ($value instanceof Stringable) {
+                $values[$key] = (string) $value;
+            }
+        }
         $text = sprintf($text, ...$values);
 
         if (!$this->getOptions()->get('specialchars')) {
@@ -119,7 +129,10 @@ final class EscposPrinter implements OptionsAwareInterface
         return $this;
     }
 
-    public function println(string $text = '', ...$values): static
+    /**
+     * @param bool|int|float|string|Stringable|null ...$values Values passed to sprintf().
+     */
+    public function println(string $text = '', bool|int|float|string|Stringable|null ...$values): static
     {
         return $this->print($text . "\n", ...$values);
     }
@@ -144,9 +157,9 @@ final class EscposPrinter implements OptionsAwareInterface
         if ($this->getOptions()->get('cut')) {
             $this->printer->cut();
             $this->printer->pulse(
-                $this->getOptions()->get('pulse.pin'),
-                $this->getOptions()->get('pulse.on_ms'),
-                $this->getOptions()->get('pulse.off_ms')
+                $this->getOptions()->requireInt('pulse.pin'),
+                $this->getOptions()->requireInt('pulse.on_ms'),
+                $this->getOptions()->requireInt('pulse.off_ms')
             );
         }
 
@@ -260,7 +273,14 @@ final class EscposPrinter implements OptionsAwareInterface
         $connector = $this->getOptions()->get('connector');
 
         if ($connector instanceof OptionsInterface) {
-            return $connector->get('type');
+            return $connector->requireString('type');
+        }
+
+        if (!is_object($connector)) {
+            throw new ConnectorNotSupportedException([
+                'The connector must be an object or a connector configuration; {type} given.',
+                'type' => get_debug_type($connector),
+            ]);
         }
 
         return $connector;

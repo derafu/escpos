@@ -62,7 +62,9 @@ final class NetworkTransport
         }
 
         try {
-            $written = fwrite($socket, $bytes);
+            // A failed write can emit a notice as well as return an incomplete
+            // result. The exception below reports the delivery failure.
+            $written = @fwrite($socket, $bytes);
 
             if ($written === false || $written < strlen($bytes)) {
                 throw new NetworkDeliveryException([
