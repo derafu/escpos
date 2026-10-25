@@ -58,7 +58,7 @@ final class EscposPrinter implements OptionsAwareInterface
         $this->resolveOptions($options);
         $this->printer = $printer ?? new Mike42Printer(
             $this->resolveConnectorOption(),
-            $this->getOptions()->requireString('profile'),
+            $this->getOptions()->getReader()->requireString('profile'),
         );
     }
 
@@ -157,9 +157,9 @@ final class EscposPrinter implements OptionsAwareInterface
         if ($this->getOptions()->get('cut')) {
             $this->printer->cut();
             $this->printer->pulse(
-                $this->getOptions()->requireInt('pulse.pin'),
-                $this->getOptions()->requireInt('pulse.on_ms'),
-                $this->getOptions()->requireInt('pulse.off_ms')
+                $this->getOptions()->getReader()->requireInt('pulse.pin'),
+                $this->getOptions()->getReader()->requireInt('pulse.on_ms'),
+                $this->getOptions()->getReader()->requireInt('pulse.off_ms')
             );
         }
 
@@ -273,7 +273,7 @@ final class EscposPrinter implements OptionsAwareInterface
         $connector = $this->getOptions()->get('connector');
 
         if ($connector instanceof OptionsInterface) {
-            return $connector->requireString('type');
+            return $connector->getReader()->requireString('type');
         }
 
         if (!is_object($connector)) {

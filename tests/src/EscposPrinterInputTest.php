@@ -12,8 +12,8 @@ declare(strict_types=1);
 
 namespace Derafu\TestsEscpos;
 
+use Derafu\Array\Exception\TypeMismatchException;
 use Derafu\Config\Options;
-use Derafu\Container\Exception\UnexpectedTypeException;
 use Derafu\Escpos\Adapter\Mike42Printer;
 use Derafu\Escpos\EscposPrinter;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -98,7 +98,7 @@ final class EscposPrinterInputTest extends TestCase
         $pulse[$key] = '1';
         $printer->setOptions(new Options(['cut' => true, 'specialchars' => true, 'pulse' => $pulse]));
 
-        $this->expectException(UnexpectedTypeException::class);
+        $this->expectException(TypeMismatchException::class);
         $printer->end();
     }
 
