@@ -1,0 +1,21 @@
+imports:
+    - { resource: '../../../resources/config/escpos-services.yaml' }
+
+# Expose the production helpers without redefining their construction.
+services:
+    test.pdf417_renderer:
+        alias: Derafu\Escpos\Renderer\Pdf417Renderer
+        public: true
+
+    test.network_transport:
+        alias: Derafu\Escpos\Transport\NetworkTransport
+        public: true
+
+    test.translator:
+        class: Symfony\Component\Translation\Translator
+        factory: ['Derafu\Translation\TranslatorFactory', 'create']
+        arguments:
+            $defaultLocale: es
+            $fallbackLocales: [en]
+            $resourceProviders: !tagged_iterator derafu_translation.resource_provider
+        public: true

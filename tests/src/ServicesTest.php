@@ -13,65 +13,118 @@ declare(strict_types=1);
 namespace Derafu\TestsEscpos;
 
 use Derafu\Escpos\EscposPrinter;
-use Derafu\Escpos\Exception\ConnectorNotSupportedException;
-use Derafu\Escpos\Translation\EscposTranslationResourceProvider;
-use Derafu\Translation\TranslatorFactory;
-use PHPUnit\Framework\Attributes\CoversNothing;
+use Derafu\Escpos\Exception\NetworkDeliveryException;
+use Derafu\Escpos\Renderer\Pdf417Renderer;
+use Derafu\Escpos\Transport\NetworkTransport;
+use PHPUnit\Framework\Attributes\CoversNamespace;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Config\FileLocator;
-use Symfony\Component\DependencyInjection\Argument\TaggedIteratorArgument;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Loader\YamlFileLoader;
 use Symfony\Component\Translation\Translator;
 
 /**
- * Import the provider-only YAML and consume its tagged translation resources.
+ * Exercise the real YAML's shared helpers with generated graphics and TCP I/O.
  */
-#[CoversNothing]
+#[CoversNamespace('Derafu\Escpos')]
 final class ServicesTest extends TestCase
 {
-    private function load(): ContainerBuilder
+    private function container(): ContainerBuilder
     {
         $container = new ContainerBuilder();
-        (new YamlFileLoader($container, new FileLocator(dirname(__DIR__, 2) . '/resources/config')))
-            ->load('escpos-services.yaml');
+        (new YamlFileLoader($container, new FileLocator(__DIR__ . '/../fixtures/config')))
+            ->load('services.yaml');
+        $container->compile();
 
         return $container;
     }
 
-    public function testTheConfiguredProviderCanBeConstructed(): void
+    private function transport(ContainerBuilder $container): NetworkTransport
     {
-        $container = $this->load();
-        $container->getDefinition(EscposTranslationResourceProvider::class)->setPublic(true);
-        $container->compile();
-        $provider = $container->get(EscposTranslationResourceProvider::class);
-        $this->assertInstanceOf(EscposTranslationResourceProvider::class, $provider);
-        $directories = [...$provider->getDirectories()];
-        $this->assertCount(1, $directories);
-        $this->assertSame(realpath(dirname(__DIR__, 2) . '/resources/translations'), realpath($directories[0]));
+        $transport = $container->get('test.network_transport');
+        $this->assertInstanceOf(NetworkTransport::class, $transport);
+
+        return $transport;
     }
 
-    public function testTaggedResourcesTranslateAnUnsupportedConnectorException(): void
+    public function testConfiguredRendererProducesAnImageUsableByIndependentPrintJobs(): void
     {
-        $container = $this->load();
-        $this->assertArrayHasKey(
-            EscposTranslationResourceProvider::class,
-            $container->findTaggedServiceIds('derafu_translation.resource_provider')
-        );
-        $container->register('app.translator', Translator::class)
-            ->setFactory([TranslatorFactory::class, 'create'])
-            ->setArguments(['es', ['en'], new TaggedIteratorArgument('derafu_translation.resource_provider')])
-            ->setPublic(true);
-        $container->compile();
-        $translator = $container->get('app.translator');
+        $container = $this->container();
+        $renderer = $container->get('test.pdf417_renderer');
+        $this->assertInstanceOf(Pdf417Renderer::class, $renderer);
+        $image = $renderer->render('LIBREDTE-TIMBRE-DATA');
+        $this->assertGreaterThan(0, imagesx($image->getResource()));
+        $this->assertGreaterThan(0, imagesy($image->getResource()));
+
+        // Jobs own their buffers and options; only the renderer is shared.
+        $first = new EscposPrinter(['cut' => false]);
+        $second = new EscposPrinter(['cut' => false]);
+        $before = $second->dump();
+        $first->println('First receipt')->image($image);
+        $firstOutput = $first->end();
+        $this->assertStringContainsString('First receipt', $firstOutput);
+        $this->assertStringContainsString("\x1d\x28\x4c", $firstOutput);
+        $this->assertSame($before, $second->dump());
+
+        $second->println('Second receipt');
+        $this->assertStringContainsString('Second receipt', $second->end());
+        $this->assertStringNotContainsString('First receipt', $second->dump());
+        $this->assertSame($firstOutput, $first->dump());
+    }
+
+    public function testConfiguredTransportDeliversTheExactReceiptToALocalTcpServer(): void
+    {
+        $transport = $this->transport($this->container());
+        $server = stream_socket_server('tcp://127.0.0.1:0');
+        $this->assertIsResource($server);
+        try {
+            $address = stream_socket_get_name($server, false);
+            $this->assertIsString($address);
+            $port = (int) substr($address, strrpos($address, ':') + 1);
+            $printer = new EscposPrinter(['cut' => false]);
+            $bytes = $printer->println('Configured transport')->end();
+
+            $transport->send($bytes, '127.0.0.1', $port, 1);
+            $connection = stream_socket_accept($server, 1);
+            $this->assertIsResource($connection);
+            try {
+                stream_set_timeout($connection, 1);
+                $this->assertSame($bytes, stream_get_contents($connection));
+            } finally {
+                fclose($connection);
+            }
+        } finally {
+            fclose($server);
+        }
+    }
+
+    public function testTaggedResourcesTranslateTheConfiguredTransportsConnectionFailure(): void
+    {
+        $container = $this->container();
+        $transport = $this->transport($container);
+        $translator = $container->get('test.translator');
         $this->assertInstanceOf(Translator::class, $translator);
 
+        // Reserve a TCP port without listening, so connections are refused
+        // without allowing another process to claim that port.
+        $reservation = stream_socket_server(
+            'tcp://127.0.0.1:0',
+            flags: STREAM_SERVER_BIND
+        );
+        $this->assertIsResource($reservation);
         try {
-            new EscposPrinter(['connector' => ['type' => 'unsupported']]);
-            $this->fail('An unsupported printer connector was accepted.');
-        } catch (ConnectorNotSupportedException $exception) {
-            $this->assertSame('PrintConnector "unsupported" is not supported.', $exception->getMessage());
-            $this->assertSame('El PrintConnector "unsupported" no está soportado.', $exception->trans($translator));
+            $address = stream_socket_get_name($reservation, false);
+            $this->assertIsString($address);
+            $port = (int) substr($address, strrpos($address, ':') + 1);
+            try {
+                $transport->send('Receipt', '127.0.0.1', $port, 1);
+                $this->fail('A connection to a non-listening port must fail.');
+            } catch (NetworkDeliveryException $exception) {
+                $this->assertStringStartsWith('Could not connect to 127.0.0.1:' . $port . ':', $exception->getMessage());
+                $this->assertStringStartsWith('No se pudo conectar a 127.0.0.1:' . $port . ':', $exception->trans($translator));
+            }
+        } finally {
+            fclose($reservation);
         }
     }
 }

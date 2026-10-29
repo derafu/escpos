@@ -3,6 +3,10 @@
 #
 #   imports:
 #       - { resource: '../vendor/derafu/escpos/resources/config/escpos-services.yaml' }
+#
+# Rendering and delivery helpers are shared and hold no print-job state.
+# Construct EscposPrinter and its backend per job, using that job's options;
+# neither is registered here because both retain mutable printer state.
 
 services:
 
@@ -10,6 +14,11 @@ services:
         autowire: true
         autoconfigure: true
         public: false
+
+    # Specialized concrete helpers without separate interface contracts.
+    Derafu\Escpos\Renderer\Pdf417Renderer: ~
+
+    Derafu\Escpos\Transport\NetworkTransport: ~
 
     # Feeds resources/translations into the consuming app's Translator (the
     # app must pass $resourceProviders: !tagged_iterator
